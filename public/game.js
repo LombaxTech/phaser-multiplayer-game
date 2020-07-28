@@ -30,20 +30,13 @@ function preload() {
 
 function create() {
     // console.log("Start of the Game.");
-
     let self = this;
 
     this.otherPlayers = this.physics.add.group();
 
-    // console.log(this.otherPlayers.getChildren());
-
     this.socket = io();
 
     this.socket.on("currentPlayers", (players) => {
-        // let currentPlayer = players[this.socket.id];
-        // console.log(currentPlayer);
-        // addShip(this, currentPlayer);
-
         Object.keys(players).forEach((id) => {
             if (id === this.socket.id) {
                 addShip(this, players[id]);
@@ -51,6 +44,8 @@ function create() {
                 addOtherPlayer(self, players[id]);
             }
         });
+
+        // console.log(this.ship);
     });
 
     this.socket.on("newPlayer", (player) => {
@@ -59,7 +54,6 @@ function create() {
 
     this.socket.on("disconnect", (playerId) => {
         console.log("disconnect");
-        // console.log(this.otherPlayers.getChildren());
         this.otherPlayers.getChildren().forEach((player) => {
             if (player.playerId === playerId) {
                 player.destroy();
@@ -67,9 +61,67 @@ function create() {
             }
         });
     });
+
+    this.socket.on("playerMoved", (playerDetails) => {
+        // console.log({ e });
+        this.otherPlayers.getChildren().forEach((player) => {
+            if (player.playerId === playerDetails.playerId) {
+                player.setRotation(playerDetails.rotation);
+                player.setPosition(playerDetails.x, playerDetails.y);
+            }
+        });
+    });
+
+    this.cursorKeys = this.input.keyboard.createCursorKeys();
+    console.log(this.physics);
 }
 
-function update() {}
+function update() {
+    if (this.ship) {
+        if (this.cursorKeys.left.isDown) {
+            this.ship.setAngularVelocity(-150);
+        } else if (this.cursorKeys.right.isDown) {
+            this.ship.setAngularVelocity(150);
+        } else {
+            this.ship.setAngularVelocity(0);
+        }
+
+        if (this.cursorKeys.up.isDown) {
+            this.physics.velocityFromRotation(
+                this.ship.rotation + 1.5,
+                -100,
+                this.ship.body.acceleration
+            );
+        } else {
+            this.ship.setAcceleration(0);
+        }
+
+        this.physics.world.wrap(this.ship, 5);
+
+        if (
+            this.ship.oldPosition &&
+            (this.ship.x !== this.ship.oldPosition.x ||
+                this.ship.y !== this.ship.oldPosition.y ||
+                this.ship.rotation !== this.ship.oldPosition.rotation)
+        ) {
+            this.socket.emit("playerMovement", {
+                x: this.ship.x,
+                y: this.ship.y,
+                rotation: this.ship.rotation,
+            });
+        }
+
+        this.ship.oldPosition = {
+            x: this.ship.x,
+            y: this.ship.y,
+            rotation: this.ship.rotation,
+        };
+
+        // if (this.ship.oldPosition) {
+        //     console.log(this.ship.x - this.ship.oldPosition.x);
+        // }
+    }
+}
 
 function addShip(self, player) {
     self.ship = self.physics.add.image(player.x, player.y, "ship");
