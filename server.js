@@ -2,9 +2,20 @@ const express = require("express");
 const app = express();
 const server = require("http").Server(app);
 const socket = require("socket.io");
+const { start } = require("repl");
 const io = socket.listen(server);
 
 let players = {};
+
+let coin = {
+    x: Math.floor(Math.random() * 700) + 50,
+    y: Math.floor(Math.random() * 700) + 50,
+};
+
+let scores = {
+    blue: 0,
+    red: 0,
+};
 
 app.use(express.static(`${__dirname}/public`));
 
@@ -27,6 +38,9 @@ io.on("connection", (socket) => {
     socket.emit("currentPlayers", players);
     socket.broadcast.emit("newPlayer", players[socket.id]);
 
+    socket.emit("coinLocation", coin);
+    socket.emit("scoreUpdate", scores);
+
     socket.on("playerMovement", (movementData) => {
         // console.log(movementData);
         players[socket.id].x = movementData.x;
@@ -34,6 +48,20 @@ io.on("connection", (socket) => {
         players[socket.id].rotation = movementData.rotation;
 
         socket.broadcast.emit("playerMoved", players[socket.id]);
+    });
+
+    socket.on("coinCollected", () => {
+        if (players[socket.id].team === "blue") {
+            scores.blue += 10;
+        } else if (players[socket.id].team === "red") {
+            scores.red += 10;
+        }
+
+        coin.x = Math.floor(Math.random() * 700) + 50;
+        coin.y = Math.floor(Math.random() * 700) + 50;
+
+        io.emit("coinLocation", coin);
+        io.emit("scoreUpdate", scores);
     });
 
     socket.on("disconnect", () => {

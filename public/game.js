@@ -26,6 +26,7 @@ let game = new Phaser.Game(config);
 
 function preload() {
     this.load.image("ship", "./assets/spaceshooter/PNG/playerShip1_blue.png");
+    this.load.image("coin", "./assets/goldCoin/goldCoin5.png");
 }
 
 function create() {
@@ -73,7 +74,43 @@ function create() {
     });
 
     this.cursorKeys = this.input.keyboard.createCursorKeys();
-    console.log(this.physics);
+    // console.log(this.physics);
+
+    // * ADDING SCORE INFO
+    this.blueScoreText = this.add.text(16, 16, "Score: ", {
+        fontSize: "32px",
+        fill: "#0000FF",
+    });
+    this.redScoreText = this.add.text(16, 48, "Score: ", {
+        fontSize: "32px",
+        fill: "#FF0000",
+    });
+
+    this.socket.on("scoreUpdate", (scores) => {
+        // console.log({ score });
+        this.blueScoreText.setText(`Score: ${scores.blue}`);
+        this.redScoreText.setText(`Score: ${scores.red}`);
+    });
+
+    this.socket.on("coinLocation", (location) => {
+        console.log("new coin to be collected");
+        if (this.coin) {
+            this.coin.destroy();
+        }
+        this.coin = this.physics.add.image(location.x, location.y, "coin");
+        this.physics.add.overlap(
+            this.ship,
+            this.coin,
+            () => {
+                // console.log("overlap");
+                this.socket.emit("coinCollected");
+            },
+            null,
+            this
+        );
+    });
+
+    // this.add.image(0, 0, "coin").setOrigin(0, 0);
 }
 
 function update() {
